@@ -3,8 +3,6 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useDarkMode } from "../context/DarkModeContext";
-import {logoImage} from "../assets/logo.jpg";
-// Import the logo
 
 export default function Topbar() {
   const { logout, user } = useAuth();
@@ -36,9 +34,8 @@ export default function Topbar() {
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 group">
-          {/* LOGO CHANGED HERE */}
           <img
-            src={logoImage}
+            src="/logo.jpg"
             alt="Transaction Book Logo"
             className="h-12 w-12 object-contain group-hover:scale-105 transition-transform"
           />

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import{logoImage} from "../assets/logo.jpg"; // Import the logo
 
 export default function Login() {
   const [form, setForm] = useState({ identifier: "", password: "" });
@@ -83,9 +82,8 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        {/* LOGO CHANGED HERE */}
         <img
-          src={logoImage}
+          src="/logo.jpg"
           alt="Transaction Book Logo"
           className="mx-auto h-20 w-auto object-contain"
         />
