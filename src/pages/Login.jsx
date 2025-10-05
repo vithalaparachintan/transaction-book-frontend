@@ -83,11 +83,9 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* LOGO CHANGED HERE */}
-        <img
-          src="/logo.jpg"
-          alt="Transaction Book Logo"
-          className="mx-auto h-20 w-auto object-contain"
-        />
+        <div className="mx-auto h-16 w-16 flex items-center justify-center bg-gradient-to-br from-sky-500 to-cyan-500 rounded-xl text-white font-bold text-3xl shadow-md">
+  TB
+</div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Sign in to your account
         </h2>
