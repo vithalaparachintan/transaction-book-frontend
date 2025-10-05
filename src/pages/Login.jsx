@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import logoImage from "../assets/logo.jpg"; // Import the logo
+import{logoImage} from "../assets/logo.jpg"; // Import the logo
 
 export default function Login() {
   const [form, setForm] = useState({ identifier: "", password: "" });

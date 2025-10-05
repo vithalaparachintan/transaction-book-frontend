@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useDarkMode } from "../context/DarkModeContext";
-import logoImage from "../assets/logo.jpg"; // Import the logo
+import {logoImage} from "../assets/logo.jpg";
+// Import the logo
 
 export default function Topbar() {
   const { logout, user } = useAuth();

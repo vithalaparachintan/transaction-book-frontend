@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import API from "../api/api";
 import { useNavigate, Link } from "react-router-dom";
-import logoImage from "../assets/logo.jpg"; // Import the logo
+import { logoImage } from "../assets/logo.jpg"; // Import the logo
 
 export default function Register() {
   const [form, setForm] = useState({ name: "", identifier: "", password: "" });
@@ -123,11 +123,10 @@ export default function Register() {
                   required
                   value={form.name}
                   onChange={handleInputChange}
-                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm ${
-                    validationErrors.name
+                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm ${validationErrors.name
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   placeholder="Enter your full name"
                 />
                 {validationErrors.name && (
@@ -153,11 +152,10 @@ export default function Register() {
                   required
                   value={form.identifier}
                   onChange={handleInputChange}
-                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm ${
-                    validationErrors.identifier
+                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm ${validationErrors.identifier
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   placeholder="Enter email or 10-digit phone"
                 />
                 {validationErrors.identifier && (
@@ -183,11 +181,10 @@ export default function Register() {
                   required
                   value={form.password}
                   onChange={handleInputChange}
-                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm ${
-                    validationErrors.password
+                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm ${validationErrors.password
                       ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                       : "border-gray-300"
-                  }`}
+                    }`}
                   placeholder="Minimum 6 characters"
                 />
                 {validationErrors.password && (
