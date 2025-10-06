@@ -34,9 +34,14 @@ export default function Topbar() {
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="mx-auto h-12 w-12 flex items-center justify-center bg-gradient-to-br from-sky-500 to-cyan-500 rounded-xl text-white font-bold text-3xl shadow-md">
-  TB
-</div>
+    <Link to="/" className="mx-auto h-12 w-12 flex items-center justify-center rounded-xl overflow-hidden shadow-md">
+  <img 
+    src="/logo.jpg" 
+    alt="Transaction Book Logo" 
+    className="h-full w-full object-contain p-1" 
+  />
+</Link>
+
           <div className="hidden sm:block">
             <div
               className={`text-xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
