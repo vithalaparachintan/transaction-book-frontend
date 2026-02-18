@@ -10,8 +10,12 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Check local storage for existing session
-    const raw = localStorage.getItem("transactionbook_user");
+    const raw = localStorage.getItem("transactionbook_user") || localStorage.getItem("tb_user");
     if (raw) {
+      if (!localStorage.getItem("transactionbook_user")) {
+        localStorage.setItem("transactionbook_user", raw);
+      }
+      localStorage.removeItem("tb_user");
       const data = JSON.parse(raw);
       // Set the auth state and also update the API header for subsequent requests
       setAuthState(data);
@@ -54,6 +58,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem("transactionbook_user");
+    localStorage.removeItem("tb_user");
     setAuthState({ token: null, user: null });
     delete API.defaults.headers.common['Authorization'];
   };

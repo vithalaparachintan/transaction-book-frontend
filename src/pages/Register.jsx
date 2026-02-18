@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import API from "../api/api";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function Register() {
   const [form, setForm] = useState({ name: "", identifier: "", password: "" });
@@ -8,6 +8,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [validationErrors, setValidationErrors] = useState({});
   const nav = useNavigate();
+  const { register } = useAuth();
 
   const validateIdentifier = (value) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,9 +76,8 @@ export default function Register() {
     
     setLoading(true);
     try {
-      const { data } = await API.post("/auth/register", form);
-      localStorage.setItem("tb_user", JSON.stringify({ token: data.token, user: data.user }));
-      nav("/dashboard");
+      await register(form.name, form.identifier, form.password);
+      nav("/");
     } catch (err) {
       const errorMessage = err.response?.data?.message || "Registration failed. Please try again.";
       setError(errorMessage);

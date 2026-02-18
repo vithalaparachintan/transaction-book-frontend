@@ -12,7 +12,11 @@ import Layout from "./components/Layout";
 import { Toaster } from "react-hot-toast";
 
 function Protected({ children }) {
-  const raw = localStorage.getItem("tb_user");
+  const raw = localStorage.getItem("transactionbook_user") || localStorage.getItem("tb_user");
+  if (!localStorage.getItem("transactionbook_user") && raw) {
+    localStorage.setItem("transactionbook_user", raw);
+    localStorage.removeItem("tb_user");
+  }
   if (!raw) return <Navigate to="/login" replace />;
   return children;
 }
