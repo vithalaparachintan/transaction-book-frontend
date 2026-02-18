@@ -8,6 +8,7 @@ import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail.jsx";
 import Reports from "./pages/Reports";
 import Profile from "./pages/Profile"; 
+import Payments from "./pages/Payments";
 import Layout from "./components/Layout";
 import { Toaster } from "react-hot-toast";
 
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/customers" element={<Protected><Customers /></Protected>} />
           <Route path="/customers/:name" element={<Protected><CustomerDetail /></Protected>} />
           <Route path="/reports" element={<Protected><Reports /></Protected>} />
+          <Route path="/payments" element={<Protected><Payments /></Protected>} />
           <Route path="/profile" element={<Protected><Profile /></Protected>} /> {/* --- NEW --- */}
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

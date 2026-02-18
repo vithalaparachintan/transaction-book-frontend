@@ -19,6 +19,7 @@ export default function Topbar() {
     { href: "/", label: "Data Insights", icon: "📊" },
     { href: "/customers", label: "Customers", icon: "👥" },
     { href: "/reports", label: "Reports", icon: "📈" },
+    { href: "/payments", label: "Payments", icon: "💰" },
   ];
 
   const userName = user?.name || user?.email?.split("@")[0] || "User";
