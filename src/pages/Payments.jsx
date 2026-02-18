@@ -214,26 +214,39 @@ export default function Payments() {
                 <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
                   Select Recipient
                 </label>
-                <select
-                  value={selectedUser?._id || ""}
-                  onChange={(e) => {
-                    const user = users.find(u => u._id === e.target.value);
-                    setSelectedUser(user);
-                  }}
-                  className={`w-full px-4 py-2 rounded-lg border ${
-                    dark
-                      ? "bg-gray-700 border-gray-600 text-white"
-                      : "bg-white border-gray-300 text-gray-900"
-                  } focus:ring-2 focus:ring-blue-500`}
-                  required
-                >
-                  <option value="">Choose a user...</option>
-                  {users.map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {user.name} - ₹{user.walletBalance?.toFixed(2) || "0.00"}
-                    </option>
-                  ))}
-                </select>
+                {users.length === 0 ? (
+                  <div className={`p-4 rounded-lg border ${
+                    dark ? "bg-gray-700 border-gray-600" : "bg-yellow-50 border-yellow-300"
+                  }`}>
+                    <p className={`text-sm ${dark ? "text-yellow-300" : "text-yellow-800"} font-medium mb-2`}>
+                      No other users available
+                    </p>
+                    <p className={`text-xs ${dark ? "text-gray-400" : "text-gray-600"}`}>
+                      To send payments, you need other registered user accounts. Create a new account (Register page) to test payments between users.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedUser?._id || ""}
+                    onChange={(e) => {
+                      const user = users.find(u => u._id === e.target.value);
+                      setSelectedUser(user);
+                    }}
+                    className={`w-full px-4 py-2 rounded-lg border ${
+                      dark
+                        ? "bg-gray-700 border-gray-600 text-white"
+                        : "bg-white border-gray-300 text-gray-900"
+                    } focus:ring-2 focus:ring-blue-500`}
+                    required
+                  >
+                    <option value="">Choose a user...</option>
+                    {users.map((user) => (
+                      <option key={user._id} value={user._id}>
+                        {user.name} - ₹{user.walletBalance?.toFixed(2) || "0.00"}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -292,8 +305,8 @@ export default function Payments() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  disabled={loading || users.length === 0}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Sending..." : "Send"}
                 </button>
