@@ -19,6 +19,7 @@ export default function Reports() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedPerson, setSelectedPerson] = useState("");
 
   useEffect(() => {
     load();
@@ -33,6 +34,7 @@ export default function Reports() {
       }
       const txRes = await API.get(url);
       setTransactions(txRes.data);
+      setSelectedPerson("");
     } catch (err) {
       console.error(err);
     } finally {
@@ -56,6 +58,7 @@ export default function Reports() {
       try {
         const txRes = await API.get("/transactions");
         setTransactions(txRes.data);
+        setSelectedPerson("");
       } catch (err) {
         console.error(err);
       } finally {
@@ -68,6 +71,47 @@ export default function Reports() {
   const totalCredit = transactions.filter(t => t.type === "credit").reduce((s, t) => s + Number(t.amount), 0);
   const totalDebit = transactions.filter(t => t.type === "debit").reduce((s, t) => s + Number(t.amount), 0);
   const balance = totalCredit - totalDebit;
+
+  const groupedMap = transactions.reduce((acc, tx) => {
+    const rawName = (tx.customerName || "Cash Transaction").trim() || "Cash Transaction";
+    const personKey = rawName.toLowerCase();
+
+    if (!acc[personKey]) {
+      acc[personKey] = {
+        key: personKey,
+        name: rawName,
+        totalCredit: 0,
+        totalDebit: 0,
+        totalNet: 0,
+        count: 0,
+        lastDate: tx.date,
+        transactions: [],
+      };
+    }
+
+    const amount = Number(tx.amount) || 0;
+    if (tx.type === "credit") {
+      acc[personKey].totalCredit += amount;
+      acc[personKey].totalNet += amount;
+    } else {
+      acc[personKey].totalDebit += amount;
+      acc[personKey].totalNet -= amount;
+    }
+
+    acc[personKey].count += 1;
+    acc[personKey].transactions.push(tx);
+
+    if (new Date(tx.date) > new Date(acc[personKey].lastDate)) {
+      acc[personKey].lastDate = tx.date;
+      acc[personKey].name = rawName;
+    }
+
+    return acc;
+  }, {});
+
+  const peopleInPeriod = Object.values(groupedMap).sort(
+    (a, b) => new Date(b.lastDate) - new Date(a.lastDate)
+  );
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900' : 'bg-gradient-to-br from-gray-50 via-cyan-50/30 to-blue-50/30'}`}>
@@ -206,44 +250,95 @@ export default function Reports() {
               </div>
             </div>
 
-            {/* Transactions List */}
+            {/* Grouped by Person List */}
             <div className={`rounded-2xl shadow-sm p-6 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100'}`}>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className={`text-xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Transactions in Period</h2>
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found</p>
+                  <h2 className={`text-xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>People in Period</h2>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{peopleInPeriod.length} person{peopleInPeriod.length !== 1 ? 's' : ''} found • {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}</p>
                 </div>
               </div>
               
               <div className="grid gap-3">
-                {transactions.map(tx => (
-                  <div key={tx._id} className={`group rounded-xl transition-all duration-200 hover:shadow-md ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 border border-gray-600' : 'bg-gray-50 hover:bg-white border border-gray-100 hover:border-cyan-200'}`}>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 gap-3">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'credit' ? 'bg-green-100' : 'bg-red-100'}`}>
-                          <svg className={`w-5 h-5 ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            {tx.type === 'credit' ? (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 11l5-5m0 0l5 5m-5-5v12"></path>
-                            ) : (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"></path>
-                            )}
+                {peopleInPeriod.map(person => (
+                  <div key={person.key} className={`group rounded-xl transition-all duration-200 hover:shadow-md ${isDarkMode ? 'bg-gray-700 border border-gray-600' : 'bg-gray-50 border border-gray-100 hover:border-cyan-200'}`}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPerson((prev) => (prev === person.key ? "" : person.key))}
+                      className="w-full text-left"
+                    >
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${person.totalNet >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                            <svg className={`w-5 h-5 ${person.totalNet >= 0 ? 'text-green-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {person.totalNet >= 0 ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 11l5-5m0 0l5 5m-5-5v12"></path>
+                              ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"></path>
+                              )}
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-bold mb-1 truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{person.name}</div>
+                            <div className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {person.count} transaction{person.count !== 1 ? 's' : ''}
+                            </div>
+                            <div className={`flex items-center gap-1.5 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                              </svg>
+                              Last entry: {new Date(person.lastDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className={`font-bold text-xl ${person.totalNet >= 0 ? "text-green-600" : "text-red-600"}`}>
+                            {person.totalNet >= 0 ? "+" : "-"}₹{Math.abs(person.totalNet).toLocaleString('en-IN')}
+                          </div>
+                          <svg className={`w-5 h-5 transition-transform ${selectedPerson === person.key ? 'rotate-90' : ''} ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
                           </svg>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className={`font-bold mb-1 truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{tx.customerName || "Cash Transaction"}</div>
-                          {tx.note && <div className={`text-sm mb-1 truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{tx.note}</div>}
-                          <div className={`flex items-center gap-1.5 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                            {new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </button>
+
+                    {selectedPerson === person.key && (
+                      <div className={`px-4 pb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <div className={`rounded-xl p-4 ${isDarkMode ? 'bg-gray-800 border border-gray-600' : 'bg-white border border-gray-200'}`}>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3 text-sm">
+                            <div>
+                              <span className="font-semibold text-green-600">Credit: </span>₹{person.totalCredit.toLocaleString('en-IN')}
+                            </div>
+                            <div>
+                              <span className="font-semibold text-red-600">Debit: </span>₹{person.totalDebit.toLocaleString('en-IN')}
+                            </div>
+                            <div>
+                              <span className={`font-semibold ${person.totalNet >= 0 ? 'text-green-600' : 'text-red-600'}`}>Net Total: </span>
+                              {person.totalNet >= 0 ? '+' : '-'}₹{Math.abs(person.totalNet).toLocaleString('en-IN')}
+                            </div>
+                          </div>
+
+                          <div className="grid gap-2">
+                            {person.transactions
+                              .slice()
+                              .sort((a, b) => new Date(b.date) - new Date(a.date))
+                              .map((tx) => (
+                                <div key={tx._id} className={`rounded-lg px-3 py-2 text-sm flex justify-between items-center ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                  <div className="min-w-0">
+                                    <div className="truncate">{tx.note || 'No note'}</div>
+                                    <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      {new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                  </div>
+                                  <div className={`font-semibold ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                                    {tx.type === 'credit' ? '+' : '-'}₹{Number(tx.amount).toLocaleString('en-IN')}
+                                  </div>
+                                </div>
+                              ))}
                           </div>
                         </div>
                       </div>
-                      <div className={`font-bold text-xl ${tx.type === "credit" ? "text-green-600" : "text-red-600"}`}>
-                        {tx.type === "credit" ? "+" : "-"}₹{tx.amount.toLocaleString('en-IN')}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 ))}
                 {transactions.length === 0 && (

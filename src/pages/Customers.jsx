@@ -193,6 +193,19 @@ export default function Customers() {
   const handleModalSubmit = async (e) => {
     e.preventDefault();
     const isEditMode = currentCustomer._id;
+
+    const normalizedName = (currentCustomer.name || "").trim().toLowerCase();
+    const hasDuplicate = customers.some(
+      (customer) =>
+        customer._id !== currentCustomer._id &&
+        (customer.name || "").trim().toLowerCase() === normalizedName
+    );
+
+    if (hasDuplicate) {
+      toast.error("A customer with this name already exists.");
+      return;
+    }
+
     try {
       if (isEditMode) {
         await API.put(`/customers/${currentCustomer._id}`, currentCustomer);

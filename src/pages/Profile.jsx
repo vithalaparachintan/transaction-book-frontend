@@ -3,15 +3,76 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../context/DarkModeContext';
+import API from '../api/api';
+import toast from 'react-hot-toast';
 
 export default function Profile() {
   const { logout, user } = useAuth();
   const { isDarkMode, toggleDarkMode } = useDarkMode();
   const nav = useNavigate();
+  const [showPasswordDropdown, setShowPasswordDropdown] = React.useState(false);
+  const [currentPassword, setCurrentPassword] = React.useState('');
+  const [newPassword, setNewPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [isChangingPassword, setIsChangingPassword] = React.useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = React.useState(false);
 
   const handleLogout = () => {
     logout();
     nav('/login');
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill all password fields');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New password and confirm password must match');
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+      const res = await API.put('/auth/change-password', { currentPassword, newPassword });
+      toast.success(res.data?.message || 'Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordDropdown(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to change password');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm('Are you sure? This will permanently delete your account and data.');
+    if (!confirmed) return;
+
+    const password = window.prompt('Enter your password to confirm account deletion:');
+    if (!password) return;
+
+    try {
+      setIsDeletingAccount(true);
+      const res = await API.delete('/auth/delete-account', { data: { password } });
+      toast.success(res.data?.message || 'Account deleted successfully');
+      logout();
+      nav('/register');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete account');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   const userName = user?.name || user?.email?.split('@')[0] || "User";
@@ -29,7 +90,10 @@ export default function Profile() {
 
         {/* Main Settings Card */}
         <div className={`rounded-2xl shadow-lg overflow-hidden mb-8 transition-colors duration-300 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100'}`}>
-          <button className={`group w-full text-left p-5 transition-all duration-200 border-b flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50 border-gray-100'}`}>
+          <button 
+            onClick={() => setShowPasswordDropdown((prev) => !prev)}
+            className={`group w-full text-left p-5 transition-all duration-200 border-b flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50 border-gray-100'}`}
+          >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,10 +105,45 @@ export default function Profile() {
                 <p className={`text-sm transition-colors duration-300 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Update your account password</p>
               </div>
             </div>
-            <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-gray-500 group-hover:text-cyan-400' : 'text-gray-400 group-hover:text-cyan-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-5 h-5 transition-all ${showPasswordDropdown ? 'rotate-90' : ''} ${isDarkMode ? 'text-gray-500 group-hover:text-cyan-400' : 'text-gray-400 group-hover:text-cyan-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
+
+          {showPasswordDropdown && (
+            <form onSubmit={handleChangePassword} className={`px-5 pb-5 border-b ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-100 bg-white'}`}>
+              <div className="grid grid-cols-1 gap-3">
+                <input
+                  type="password"
+                  placeholder="Current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className={`w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-100 focus:ring-cyan-700' : 'bg-white border-gray-200 focus:ring-cyan-200'}`}
+                />
+                <input
+                  type="password"
+                  placeholder="New password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={`w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-100 focus:ring-cyan-700' : 'bg-white border-gray-200 focus:ring-cyan-200'}`}
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-100 focus:ring-cyan-700' : 'bg-white border-gray-200 focus:ring-cyan-200'}`}
+                />
+                <button
+                  type="submit"
+                  disabled={isChangingPassword}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl"
+                >
+                  {isChangingPassword ? 'Changing...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          )}
 
           <button className={`group w-full text-left p-5 transition-all duration-200 border-b flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50 border-gray-100'}`}>
             <div className="flex items-center gap-4">
@@ -132,11 +231,15 @@ export default function Profile() {
                   Permanently delete your account and all data. This action cannot be undone.
                 </p>
               </div>
-              <button className="group bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 hover:scale-105 flex-shrink-0">
+              <button 
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                className="group bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 hover:scale-105 flex-shrink-0"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                Delete
+                {isDeletingAccount ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
