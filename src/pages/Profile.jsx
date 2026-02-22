@@ -30,8 +30,8 @@ export default function Profile() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error('New password must be at least 6 characters');
+    if (newPassword.length < 4) {
+      toast.error('New password must be at least 4 characters');
       return;
     }
 
@@ -91,6 +91,7 @@ export default function Profile() {
         {/* Main Settings Card */}
         <div className={`rounded-2xl shadow-lg overflow-hidden mb-8 transition-colors duration-300 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100'}`}>
           <button 
+            type="button"
             onClick={() => setShowPasswordDropdown((prev) => !prev)}
             className={`group w-full text-left p-5 transition-all duration-200 border-b flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50 border-gray-100'}`}
           >
@@ -145,7 +146,7 @@ export default function Profile() {
             </form>
           )}
 
-          <button className={`group w-full text-left p-5 transition-all duration-200 border-b flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50 border-gray-100'}`}>
+          <button type="button" className={`group w-full text-left p-5 transition-all duration-200 border-b flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50 border-gray-100'}`}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-600 rounded-xl flex items-center justify-center flex-shrink-0">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,6 +165,7 @@ export default function Profile() {
           </button>
 
           <button 
+            type="button"
             onClick={toggleDarkMode}
             className={`group w-full text-left p-5 transition-all duration-200 border-b flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-700 border-gray-700' : 'hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 border-gray-100'}`}
           >
@@ -192,6 +194,7 @@ export default function Profile() {
           </button>
 
           <button 
+            type="button"
             onClick={handleLogout}
             className={`group w-full text-left p-5 transition-all duration-200 flex items-center justify-between ${isDarkMode ? 'hover:bg-red-900/30' : 'hover:bg-red-50'}`}
           >
@@ -232,6 +235,7 @@ export default function Profile() {
                 </p>
               </div>
               <button 
+                type="button"
                 onClick={handleDeleteAccount}
                 disabled={isDeletingAccount}
                 className="group bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 hover:scale-105 flex-shrink-0"
