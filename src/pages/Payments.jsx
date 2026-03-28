@@ -11,9 +11,11 @@ export default function Payments() {
   const [stats, setStats] = useState({ sent: {}, received: {} });
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showAddMoneyModal, setShowAddMoneyModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [addAmount, setAddAmount] = useState("");
   const [fee, setFee] = useState(0);
   const [tax, setTax] = useState(0);
   const [processingPayment, setProcessingPayment] = useState(null);
@@ -151,6 +153,30 @@ export default function Payments() {
     }
   };
 
+  const handleAddMoney = async (e) => {
+    e.preventDefault();
+    if (!addAmount || addAmount <= 0) {
+      toast.error("Enter valid amount");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await API.post("/payments/add-money", {
+        amount: Number(addAmount)
+      });
+      toast.success(`₹${addAmount} added to wallet successfully!`);
+      setWalletBalance(res.data.newBalance);
+      setShowAddMoneyModal(false);
+      setAddAmount("");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to add money");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const colors = {
       initiated: "bg-yellow-100 text-yellow-800",
@@ -217,12 +243,20 @@ export default function Payments() {
             </div>
           </div>
 
-          <button
-            onClick={() => setShowPaymentModal(true)}
-            className="mt-6 w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all shadow-md"
-          >
-            Send Money
-          </button>
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all shadow-md"
+            >
+              Send Money
+            </button>
+            <button
+              onClick={() => setShowAddMoneyModal(true)}
+              className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all shadow-md"
+            >
+              Add Money (Test)
+            </button>
+          </div>
         </div>
 
         {/* Payment History */}
@@ -444,6 +478,66 @@ export default function Payments() {
               <p className={`text-xs text-center ${dark ? "text-gray-400" : "text-gray-600"}`}>
                 🔒 Secure payment powered by Razorpay
               </p>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Money Modal */}
+      {showAddMoneyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl p-8 w-full max-w-md`}>
+            <h3 className={`text-2xl font-bold mb-6 ${dark ? "text-white" : "text-gray-900"}`}>
+              Add Money to Wallet
+            </h3>
+            <form onSubmit={handleAddMoney} className="space-y-5">
+              <div>
+                <label className={`block text-sm font-semibold mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                  Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1"
+                  max="100000"
+                  value={addAmount}
+                  onChange={(e) => setAddAmount(e.target.value)}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    dark
+                      ? "bg-gray-700 border-gray-600 text-white"
+                      : "bg-white border-gray-300 text-gray-900"
+                  } focus:ring-2 focus:ring-green-500 focus:border-transparent`}
+                  placeholder="Enter amount (for testing)"
+                  required
+                />
+                <p className={`text-xs mt-1 ${dark ? "text-gray-400" : "text-gray-600"}`}>
+                  For testing purposes only - No real charge
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddMoneyModal(false);
+                    setAddAmount("");
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg border font-medium transition-colors ${
+                    dark
+                      ? "border-gray-600 text-gray-300 hover:bg-gray-700"
+                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || !addAmount}
+                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all"
+                >
+                  {loading ? "Adding..." : "Add Money"}
+                </button>
+              </div>
             </form>
           </div>
         </div>
