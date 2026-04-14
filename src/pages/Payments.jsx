@@ -2,9 +2,12 @@ import React, { useState, useEffect } from "react";
 import API from "../api/api";
 import toast from "react-hot-toast";
 import { useDarkMode } from "../context/DarkModeContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function Payments() {
   const { dark } = useDarkMode();
+  const { authState } = useAuth();
+  const currentUserId = authState?.user?._id;
   const [users, setUsers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -38,10 +41,16 @@ export default function Payments() {
       ]);
       setUsers(usersRes.data.users || []);
       setPayments(paymentsRes.data.payments || []);
-      setWalletBalance(balanceRes.data.balance);
-      setStats(statsRes.data.statistics);
+      setWalletBalance(balanceRes.data.balance || 0);
+      setStats(statsRes.data.statistics || { sent: {}, received: {} });
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to load data");
+      console.error("Fetch error:", err);
+      const message = err.response?.data?.message;
+      if (message && message.toLowerCase().includes("token")) {
+        // Silent auth error - will be handled by API interceptor
+      } else {
+        toast.error(message || "Failed to load payment data");
+      }
     }
   };
 
@@ -273,7 +282,7 @@ export default function Payments() {
           ) : (
             <div className="space-y-3">
               {payments.map((payment) => {
-                const isSent = payment.sender?._id === users[0]?._id;
+                const isSent = payment.sender?._id === currentUserId;
                 const otherUser = isSent ? payment.receiver : payment.sender;
 
                 return (
@@ -351,11 +360,27 @@ export default function Payments() {
                 </label>
                 {users.length === 0 ? (
                   <div className={`p-4 rounded-lg border-2 ${
-                    dark ? "bg-yellow-900 border-yellow-700" : "bg-yellow-50 border-yellow-300"
+                    dark ? "bg-red-900 border-red-700" : "bg-red-50 border-red-300"
                   }`}>
-                    <p className={`text-sm font-medium ${dark ? "text-yellow-200" : "text-yellow-800"}`}>
-                      No other users available
+                    <p className={`text-sm font-bold ${dark ? "text-red-200" : "text-red-800"}`}>
+                      ⚠️ No Other Users Found
                     </p>
+                    <p className={`text-xs mt-2 ${dark ? "text-red-300" : "text-red-700"}`}>
+                      You need at least 2 registered users to send money. Ask others to create accounts and register in the application first.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPaymentModal(false);
+                      }}
+                      className={`mt-3 text-sm w-full px-3 py-2 rounded ${
+                        dark 
+                          ? "bg-red-800 hover:bg-red-700 text-red-100" 
+                          : "bg-red-200 hover:bg-red-300 text-red-900"
+                      } font-medium transition-colors`}
+                    >
+                      Close
+                    </button>
                   </div>
                 ) : (
                   <select
@@ -374,7 +399,7 @@ export default function Payments() {
                     <option value="">Choose a recipient...</option>
                     {users.map((user) => (
                       <option key={user._id} value={user._id}>
-                        {user.name} ({user.email})
+                        {user.name} ({user.email || user.phone || "no contact"})
                       </option>
                     ))}
                   </select>
