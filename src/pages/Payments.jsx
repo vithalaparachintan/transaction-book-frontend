@@ -11,7 +11,7 @@ export default function Payments() {
   const [users, setUsers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
-  const [stats, setStats] = useState({ sent: {}, received: {} });
+  const [stats, setStats] = useState({ sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } });
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showAddMoneyModal, setShowAddMoneyModal] = useState(false);
@@ -23,42 +23,47 @@ export default function Payments() {
   const [tax, setTax] = useState(0);
   const [processingPayment, setProcessingPayment] = useState(null);
 
+  // Load Razorpay script on mount
   useEffect(() => {
     fetchData();
+    
     // Load Razorpay script
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
     document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
   }, []);
 
+  // Fetch all data on component load
   const fetchData = async () => {
     try {
       const [usersRes, paymentsRes, balanceRes, statsRes] = await Promise.all([
-        API.get("/payments/users/all"),
-        API.get("/payments/history"),
-        API.get("/payments/balance"),
-        API.get("/payments/stats/summary")
+        API.get("/payments/users/all").catch(err => ({ data: { users: [] }, error: err })),
+        API.get("/payments/history").catch(err => ({ data: { payments: [] }, error: err })),
+        API.get("/payments/balance").catch(err => ({ data: { balance: 0 }, error: err })),
+        API.get("/payments/stats/summary").catch(err => ({ data: { statistics: { sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } } }, error: err }))
       ]);
-      setUsers(usersRes.data.users || []);
-      setPayments(paymentsRes.data.payments || []);
-      setWalletBalance(balanceRes.data.balance || 0);
-      setStats(statsRes.data.statistics || { sent: {}, received: {} });
+
+      setUsers(usersRes.data?.users || []);
+      setPayments(paymentsRes.data?.payments || []);
+      setWalletBalance(balanceRes.data?.balance || 0);
+      setStats(statsRes.data?.statistics || { sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } });
     } catch (err) {
       console.error("Fetch error:", err);
-      const message = err.response?.data?.message;
-      if (message && message.toLowerCase().includes("token")) {
-        // Silent auth error - will be handled by API interceptor
-      } else {
-        toast.error(message || "Failed to load payment data");
-      }
     }
   };
 
   // Calculate fees when amount changes
   const handleAmountChange = (value) => {
     setAmount(value);
-    if (value) {
-      const calculatedFee = Math.round((value * 0.02 + 2) * 100) / 100;
+    if (value && parseFloat(value) > 0) {
+      const calculatedFee = Math.round((parseFloat(value) * 0.02 + 2) * 100) / 100;
       const calculatedTax = Math.round(calculatedFee * 0.18 * 100) / 100;
       setFee(calculatedFee);
       setTax(calculatedTax);
@@ -68,25 +73,32 @@ export default function Payments() {
     }
   };
 
+  // Initiate payment with Razorpay
   const handleInitiatePayment = async (e) => {
     e.preventDefault();
-    if (!selectedUser || !amount || amount <= 0) {
+    if (!selectedUser || !amount || parseFloat(amount) <= 0) {
       toast.error("Please select user and enter valid amount");
       return;
     }
 
     setLoading(true);
     try {
-      // Step 1: Create order on backend
+      // Call backend to create Razorpay order
       const res = await API.post("/payments/initiate", {
         receiverId: selectedUser._id,
-        amount: Number(amount),
-        note
+        amount: parseFloat(amount),
+        note: note || "Payment Transfer"
       });
 
-      const { razorpayOrder, razorpayKey, payment } = res.data;
+      const { razorpayOrder, razorpayKey } = res.data;
 
-      // Step 2: Open Razorpay checkout
+      if (!window.Razorpay) {
+        toast.error("Razorpay library not loaded. Please refresh page.");
+        setLoading(false);
+        return;
+      }
+
+      // Open Razorpay checkout
       const options = {
         key: razorpayKey,
         amount: razorpayOrder.amount,
@@ -95,34 +107,38 @@ export default function Payments() {
         name: "Transaction Book",
         description: `Payment to ${selectedUser.name}`,
         notes: {
-          note: note,
-          recipient: selectedUser.name
+          productDescription: `Payment to ${selectedUser.name}`
         },
-        handler: async (response) => {
-          await handlePaymentSuccess(response, payment._id);
-        },
+        handler: (response) => handlePaymentSuccess(response),
         prefill: {
-          name: localStorage.getItem("userName") || "",
-          email: localStorage.getItem("userEmail") || ""
+          name: authState?.user?.name || "",
+          email: authState?.user?.email || ""
         },
         theme: {
           color: dark ? "#1f2937" : "#3b82f6"
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            toast.error("Payment cancelled");
+          }
         }
       };
 
-      const rzp1 = new window.Razorpay(options);
-      rzp1.open();
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (err) {
+      console.error("Payment initiation error:", err);
       toast.error(err.response?.data?.message || "Failed to initiate payment");
-    } finally {
       setLoading(false);
     }
   };
 
-  const handlePaymentSuccess = async (response, paymentDbId) => {
-    setProcessingPayment(paymentDbId);
+  // Handle successful payment
+  const handlePaymentSuccess = async (response) => {
+    setProcessingPayment(true);
     try {
-      // Step 3: Verify payment on backend
+      // Verify payment
       const res = await API.post("/payments/verify", {
         paymentId: response.razorpay_payment_id,
         orderId: response.razorpay_order_id,
@@ -130,10 +146,6 @@ export default function Payments() {
       });
 
       toast.success("Payment completed successfully!");
-      setWalletBalance(res.data.payment.amount);
-      
-      // Refresh data
-      fetchData();
       
       // Reset form
       setShowPaymentModal(false);
@@ -142,29 +154,22 @@ export default function Payments() {
       setNote("");
       setFee(0);
       setTax(0);
+      
+      // Refresh data
+      await fetchData();
     } catch (err) {
+      console.error("Payment verification error:", err);
       toast.error(err.response?.data?.message || "Payment verification failed");
     } finally {
-      setProcessingPayment(null);
+      setProcessingPayment(false);
+      setLoading(false);
     }
   };
 
-  const handleRefundRequest = async (paymentId) => {
-    const reason = prompt("Enter refund reason:");
-    if (!reason) return;
-
-    try {
-      await API.post(`/payments/${paymentId}/refund`, { reason });
-      toast.success("Refund requested successfully!");
-      fetchData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Refund failed");
-    }
-  };
-
+  // Handle add money (for testing/demo)
   const handleAddMoney = async (e) => {
     e.preventDefault();
-    if (!addAmount || addAmount <= 0) {
+    if (!addAmount || parseFloat(addAmount) <= 0) {
       toast.error("Enter valid amount");
       return;
     }
@@ -172,20 +177,22 @@ export default function Payments() {
     setLoading(true);
     try {
       const res = await API.post("/payments/add-money", {
-        amount: Number(addAmount)
+        amount: parseFloat(addAmount)
       });
       toast.success(`₹${addAmount} added to wallet successfully!`);
       setWalletBalance(res.data.newBalance);
       setShowAddMoneyModal(false);
       setAddAmount("");
-      fetchData();
+      await fetchData();
     } catch (err) {
+      console.error("Add money error:", err);
       toast.error(err.response?.data?.message || "Failed to add money");
     } finally {
       setLoading(false);
     }
   };
 
+  // Get status badge styling
   const getStatusBadge = (status) => {
     const colors = {
       initiated: "bg-yellow-100 text-yellow-800",
@@ -213,9 +220,10 @@ export default function Payments() {
   return (
     <div className={`min-h-screen ${dark ? "bg-gray-900" : "bg-gray-50"} p-6`}>
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header Section */}
         <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl shadow-lg p-8 mb-6`}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Title */}
             <div className="md:col-span-1">
               <h1 className={`text-4xl font-bold ${dark ? "text-white" : "text-gray-900"}`}>
                 Payments
@@ -226,13 +234,13 @@ export default function Payments() {
             </div>
 
             {/* Wallet Balance Card */}
-            <div className={`${dark ? "bg-gradient-to-br from-blue-900 to-blue-800" : "bg-gradient-to-br from-blue-500 to-blue-600"} rounded-lg p-6 text-white`}>
+            <div className={`${dark ? "bg-gradient-to-br from-blue-900 to-blue-800" : "bg-gradient-to-br from-blue-500 to-blue-600"} rounded-lg p-6 text-white shadow-lg`}>
               <p className="text-sm font-medium opacity-90">Wallet Balance</p>
               <p className="text-3xl font-bold mt-2">₹{walletBalance.toFixed(2)}</p>
             </div>
 
             {/* Quick Stats */}
-            <div className={`grid grid-cols-2 gap-4`}>
+            <div className="grid grid-cols-2 gap-4">
               <div className={`${dark ? "bg-gray-700" : "bg-gray-100"} rounded-lg p-4`}>
                 <p className={`text-xs font-medium ${dark ? "text-gray-400" : "text-gray-600"}`}>
                   Total Sent
@@ -252,6 +260,7 @@ export default function Payments() {
             </div>
           </div>
 
+          {/* Action Buttons */}
           <div className="flex gap-3 mt-6">
             <button
               onClick={() => setShowPaymentModal(true)}
@@ -268,7 +277,7 @@ export default function Payments() {
           </div>
         </div>
 
-        {/* Payment History */}
+        {/* Transaction History */}
         <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl shadow-lg p-6`}>
           <h2 className={`text-2xl font-bold mb-6 ${dark ? "text-white" : "text-gray-900"}`}>
             Transaction History
@@ -280,7 +289,7 @@ export default function Payments() {
               <p className="text-sm mt-1">Send your first payment using the button above</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-x-auto">
               {payments.map((payment) => {
                 const isSent = payment.sender?._id === currentUserId;
                 const otherUser = isSent ? payment.receiver : payment.sender;
@@ -289,53 +298,31 @@ export default function Payments() {
                   <div
                     key={payment._id}
                     className={`${
-                      dark ? "bg-gray-700 hover:bg-gray-650" : "bg-gray-50 hover:bg-gray-100"
+                      dark ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-50 hover:bg-gray-100"
                     } p-5 rounded-lg flex justify-between items-center transition-colors`}
                   >
                     <div className="flex items-center gap-4 flex-1">
                       <div
-                        className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white ${
-                          isSent ? "bg-gradient-to-br from-red-500 to-red-600" : "bg-gradient-to-br from-green-500 to-green-600"
+                        className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-sm ${
+                          isSent ? "bg-red-500" : "bg-green-500"
                         }`}
                       >
-                        {isSent ? "−" : "+"}
+                        {otherUser?.name?.charAt(0)?.toUpperCase() || "U"}
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
-                          {isSent ? "Sent to" : "Received from"} <span className="font-bold">{otherUser?.name || "Unknown"}</span>
+                          {isSent ? "Sent to" : "Received from"} {otherUser?.name}
                         </p>
-                        {payment.note && (
-                          <p className={`text-sm ${dark ? "text-gray-400" : "text-gray-600"}`}>
-                            "{payment.note}"
-                          </p>
-                        )}
-                        <p className={`text-xs ${dark ? "text-gray-500" : "text-gray-400"} mt-1`}>
-                          Transaction ID: <span className="font-mono">{payment.transactionId?.slice(-8) || "N/A"}</span>
+                        <p className={`text-xs ${dark ? "text-gray-400" : "text-gray-600"}`}>
+                          {new Date(payment.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p
-                        className={`text-xl font-bold ${
-                          isSent ? "text-red-600" : "text-green-600"
-                        }`}
-                      >
-                        {isSent ? "−" : "+"}₹{payment.amount.toFixed(2)}
+                      <p className={`text-lg font-bold ${isSent ? "text-red-500" : "text-green-500"}`}>
+                        {isSent ? "-" : "+"}₹{payment.amount.toFixed(2)}
                       </p>
-                      <p className={`text-xs ${dark ? "text-gray-400" : "text-gray-500"} mt-1`}>
-                        {payment.fee > 0 && `Fee: ₹${payment.fee.toFixed(2)}`}
-                      </p>
-                      <div className="mt-2">
-                        {getStatusBadge(payment.status)}
-                      </div>
-                      {payment.status === "completed" && (
-                        <button
-                          onClick={() => handleRefundRequest(payment._id)}
-                          className="mt-2 text-xs text-orange-600 hover:text-orange-700 font-medium"
-                        >
-                          Request Refund
-                        </button>
-                      )}
+                      {getStatusBadge(payment.status)}
                     </div>
                   </div>
                 );
@@ -345,132 +332,95 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* Payment Modal */}
+      {/* Send Money Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl p-8 w-full max-w-md max-h-96 overflow-y-auto`}>
+          <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl shadow-2xl max-w-md w-full p-6`}>
             <h3 className={`text-2xl font-bold mb-6 ${dark ? "text-white" : "text-gray-900"}`}>
               Send Money
             </h3>
-            <form onSubmit={handleInitiatePayment} className="space-y-5">
-              {/* Recipient Selection */}
+
+            <form onSubmit={handleInitiatePayment} className="space-y-4">
+              {/* User Selection */}
               <div>
-                <label className={`block text-sm font-semibold mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
                   Select Recipient
                 </label>
-                {users.length === 0 ? (
-                  <div className={`p-4 rounded-lg border-2 ${
-                    dark ? "bg-red-900 border-red-700" : "bg-red-50 border-red-300"
-                  }`}>
-                    <p className={`text-sm font-bold ${dark ? "text-red-200" : "text-red-800"}`}>
-                      ⚠️ No Other Users Found
-                    </p>
-                    <p className={`text-xs mt-2 ${dark ? "text-red-300" : "text-red-700"}`}>
-                      You need at least 2 registered users to send money. Ask others to create accounts and register in the application first.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPaymentModal(false);
-                      }}
-                      className={`mt-3 text-sm w-full px-3 py-2 rounded ${
-                        dark 
-                          ? "bg-red-800 hover:bg-red-700 text-red-100" 
-                          : "bg-red-200 hover:bg-red-300 text-red-900"
-                      } font-medium transition-colors`}
-                    >
-                      Close
-                    </button>
-                  </div>
-                ) : (
-                  <select
-                    value={selectedUser?._id || ""}
-                    onChange={(e) => {
-                      const user = users.find(u => u._id === e.target.value);
-                      setSelectedUser(user);
-                    }}
-                    className={`w-full px-4 py-2 rounded-lg border ${
-                      dark
-                        ? "bg-gray-700 border-gray-600 text-white"
-                        : "bg-white border-gray-300 text-gray-900"
-                    } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                    required
-                  >
-                    <option value="">Choose a recipient...</option>
-                    {users.map((user) => (
-                      <option key={user._id} value={user._id}>
-                        {user.name} ({user.email || user.phone || "no contact"})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {/* Amount */}
-              <div>
-                <label className={`block text-sm font-semibold mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
-                  Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="10"
-                  max="100000"
-                  value={amount}
-                  onChange={(e) => handleAmountChange(e.target.value)}
+                <select
+                  value={selectedUser?._id || ""}
+                  onChange={(e) => {
+                    const user = users.find(u => u._id === e.target.value);
+                    setSelectedUser(user);
+                  }}
                   className={`w-full px-4 py-2 rounded-lg border ${
                     dark
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
-                  } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                  placeholder="Enter amount (min ₹10)"
-                  required
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                >
+                  <option value="">Choose a user...</option>
+                  {users.map((user) => (
+                    <option key={user._id} value={user._id}>
+                      {user.name} - ₹{user.walletBalance?.toFixed(2) || "0.00"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Amount Input */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                  Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  placeholder="Enter amount"
+                  min="1"
+                  max="100000"
+                  step="0.01"
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    dark
+                      ? "bg-gray-700 border-gray-600 text-white"
+                      : "bg-white border-gray-300 text-gray-900"
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
-                <p className={`text-xs mt-1 ${dark ? "text-gray-400" : "text-gray-600"}`}>
-                  Minimum ₹10 • Maximum ₹100,000
-                </p>
               </div>
 
               {/* Fee Breakdown */}
               {amount && (
-                <div className={`p-4 rounded-lg ${dark ? "bg-gray-700" : "bg-blue-50"}`}>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className={dark ? "text-gray-400" : "text-gray-600"}>Amount</span>
-                      <span className={dark ? "text-white" : "text-gray-900"}>₹{parseFloat(amount || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className={dark ? "text-gray-400" : "text-gray-600"}>Fee (2% + ₹2)</span>
-                      <span className={dark ? "text-white" : "text-gray-900"}>₹{fee.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className={dark ? "text-gray-400" : "text-gray-600"}>GST (18%)</span>
-                      <span className={dark ? "text-white" : "text-gray-900"}>₹{tax.toFixed(2)}</span>
-                    </div>
-                    <div className={`border-t pt-2 flex justify-between font-bold ${dark ? "border-gray-600" : "border-blue-200"}`}>
-                      <span>Recipient Gets</span>
-                      <span className="text-green-600">₹{(parseFloat(amount || 0) - fee - tax).toFixed(2)}</span>
-                    </div>
+                <div className={`${dark ? "bg-gray-700" : "bg-gray-100"} p-4 rounded-lg`}>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Amount:</span>
+                    <span>₹{parseFloat(amount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Fee (2%):</span>
+                    <span>₹{fee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-gray-500 pt-2">
+                    <span className="font-semibold">Total:</span>
+                    <span className="font-semibold">₹{(parseFloat(amount) + fee).toFixed(2)}</span>
                   </div>
                 </div>
               )}
 
-              {/* Note */}
+              {/* Note Input */}
               <div>
-                <label className={`block text-sm font-semibold mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
                   Note (Optional)
                 </label>
                 <input
                   type="text"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
+                  placeholder="Add a note"
                   className={`w-full px-4 py-2 rounded-lg border ${
                     dark
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
-                  } focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                  placeholder="Add a note (e.g., 'Lunch money')"
-                  maxLength="100"
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
               </div>
 
@@ -484,25 +434,22 @@ export default function Payments() {
                     setAmount("");
                     setNote("");
                   }}
-                  className={`flex-1 px-4 py-2 rounded-lg border font-medium transition-colors ${
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium ${
                     dark
-                      ? "border-gray-600 text-gray-300 hover:bg-gray-700"
-                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      ? "bg-gray-700 text-white hover:bg-gray-600"
+                      : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                   }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !selectedUser || !amount || users.length === 0 || processingPayment}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all"
+                  disabled={loading || !selectedUser || !amount}
+                  className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {loading ? "Loading..." : processingPayment ? "Processing..." : "Pay with Razorpay"}
+                  {loading ? "Processing..." : "Pay Now"}
                 </button>
               </div>
-              <p className={`text-xs text-center ${dark ? "text-gray-400" : "text-gray-600"}`}>
-                🔒 Secure payment powered by Razorpay
-              </p>
             </form>
           </div>
         </div>
@@ -511,33 +458,30 @@ export default function Payments() {
       {/* Add Money Modal */}
       {showAddMoneyModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl p-8 w-full max-w-md`}>
+          <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl shadow-2xl max-w-md w-full p-6`}>
             <h3 className={`text-2xl font-bold mb-6 ${dark ? "text-white" : "text-gray-900"}`}>
               Add Money to Wallet
             </h3>
-            <form onSubmit={handleAddMoney} className="space-y-5">
+
+            <form onSubmit={handleAddMoney} className="space-y-4">
               <div>
-                <label className={`block text-sm font-semibold mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
                   Amount (₹)
                 </label>
                 <input
                   type="number"
-                  step="0.01"
-                  min="1"
-                  max="100000"
                   value={addAmount}
                   onChange={(e) => setAddAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  min="1"
+                  max="100000"
+                  step="0.01"
                   className={`w-full px-4 py-2 rounded-lg border ${
                     dark
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
-                  } focus:ring-2 focus:ring-green-500 focus:border-transparent`}
-                  placeholder="Enter amount (for testing)"
-                  required
+                  } focus:outline-none focus:ring-2 focus:ring-green-500`}
                 />
-                <p className={`text-xs mt-1 ${dark ? "text-gray-400" : "text-gray-600"}`}>
-                  For testing purposes only - No real charge
-                </p>
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -547,10 +491,10 @@ export default function Payments() {
                     setShowAddMoneyModal(false);
                     setAddAmount("");
                   }}
-                  className={`flex-1 px-4 py-2 rounded-lg border font-medium transition-colors ${
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium ${
                     dark
-                      ? "border-gray-600 text-gray-300 hover:bg-gray-700"
-                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      ? "bg-gray-700 text-white hover:bg-gray-600"
+                      : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                   }`}
                 >
                   Cancel
@@ -558,9 +502,9 @@ export default function Payments() {
                 <button
                   type="submit"
                   disabled={loading || !addAmount}
-                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-all"
+                  className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {loading ? "Adding..." : "Add Money"}
+                  {loading ? "Processing..." : "Add Money"}
                 </button>
               </div>
             </form>

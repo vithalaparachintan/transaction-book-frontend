@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const API = axios.create({ baseURL: "https://transaction-book-backend.onrender.com/api" });
+// Use environment variable for API URL, fallback to localhost for development
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+
+const API = axios.create({ baseURL: API_BASE_URL });
 const AUTH_STORAGE_KEY = "transactionbook_user";
 const LEGACY_AUTH_STORAGE_KEY = "tb_user";
 
