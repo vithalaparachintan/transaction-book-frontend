@@ -1,7 +1,8 @@
 import axios from "axios";
 
 // Use environment variable for API URL, fallback to localhost for development
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+// Vite uses VITE_ prefix for env variables, not REACT_APP_
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const API = axios.create({ baseURL: API_BASE_URL });
 const AUTH_STORAGE_KEY = "transactionbook_user";
