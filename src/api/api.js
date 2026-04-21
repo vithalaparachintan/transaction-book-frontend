@@ -29,8 +29,16 @@ const getStoredAuth = () => {
 API.interceptors.request.use((config) => {
   const raw = getStoredAuth();
   if (raw) {
-    const { token } = JSON.parse(raw);
-    config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const { token } = JSON.parse(raw);
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log("✅ Token attached:", token.substring(0, 20) + "...");
+    } catch (e) {
+      console.error("❌ Invalid token format:", e);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  } else {
+    console.warn("⚠️ No token found - user may not be logged in");
   }
   return config;
 });
@@ -42,7 +50,14 @@ API.interceptors.response.use(
     const message = String(error.response?.data?.message || "").toLowerCase();
     const isAuthError = status === 401 && (message.includes("token") || message.includes("authorized"));
 
+    console.error("❌ API Error:", {
+      status,
+      message: error.response?.data?.message,
+      url: error.config?.url
+    });
+
     if (isAuthError) {
+      console.warn("🔓 Auth error - clearing tokens and redirecting to login");
       localStorage.removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY);
       if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
