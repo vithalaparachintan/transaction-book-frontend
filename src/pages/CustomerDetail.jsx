@@ -7,6 +7,7 @@ import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
 import { useDarkMode } from "../context/DarkModeContext";
+import SendMoneyModal from "../components/SendMoneyModal";
 
 
 const EditTransactionModal = ({ isOpen, onClose, txData, onChange, onSubmit }) => {
@@ -95,9 +96,8 @@ export default function CustomerDetail() {
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
-
- 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSendMoneyModalOpen, setIsSendMoneyModalOpen] = useState(false);
   const [newTransaction, setNewTransaction] = useState({ amount: '', note: '', type: 'credit' });
 
   async function loadTransactions() {
@@ -225,6 +225,12 @@ export default function CustomerDetail() {
           onSubmit={handleAddSubmit} 
           type={newTransaction.type} 
         />
+        <SendMoneyModal 
+          isOpen={isSendMoneyModalOpen}
+          onClose={() => setIsSendMoneyModalOpen(false)}
+          contact={{ _id: ledger.customerId, name: customerName }}
+          onSuccess={loadTransactions}
+        />
         
         <Link to="/customers" className={`hover:underline mb-4 inline-block ${isDarkMode ? 'text-cyan-400' : 'text-cyan-500'}`}>
           &larr; Back to All Customers
@@ -294,20 +300,26 @@ export default function CustomerDetail() {
           )}
         </div>
 
-        {/* Fixed footer with "You Gave" / "You Got" buttons */}
+        {/* Fixed footer with action buttons */}
         <div className={`fixed bottom-0 left-0 right-0 border-t p-4 shadow-lg ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
-          <div className="max-w-3xl mx-auto grid grid-cols-2 gap-4">
+          <div className="max-w-3xl mx-auto grid grid-cols-3 gap-4">
             <button 
               onClick={() => openAddModal('debit')} 
-              className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg text-lg"
+              className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg text-sm md:text-base"
             >
               You Gave ₹
             </button>
             <button 
               onClick={() => openAddModal('credit')} 
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-lg"
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-sm md:text-base"
             >
               You Got ₹
+            </button>
+            <button 
+              onClick={() => setIsSendMoneyModalOpen(true)} 
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-sm md:text-base"
+            >
+              Send Money 💳
             </button>
           </div>
         </div>
