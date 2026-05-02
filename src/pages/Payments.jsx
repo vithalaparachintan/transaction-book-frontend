@@ -23,21 +23,9 @@ export default function Payments() {
   const [tax, setTax] = useState(0);
   const [processingPayment, setProcessingPayment] = useState(null);
 
-  // Load Razorpay script on mount
+  // Load Razorpay script on mount for Add Money feature only
   useEffect(() => {
     fetchData();
-    
-    // Load Razorpay script
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
   }, []);
 
   // Fetch all data on component load
@@ -62,18 +50,12 @@ export default function Payments() {
   // Calculate fees when amount changes
   const handleAmountChange = (value) => {
     setAmount(value);
-    if (value && parseFloat(value) > 0) {
-      const calculatedFee = Math.round((parseFloat(value) * 0.02 + 2) * 100) / 100;
-      const calculatedTax = Math.round(calculatedFee * 0.18 * 100) / 100;
-      setFee(calculatedFee);
-      setTax(calculatedTax);
-    } else {
-      setFee(0);
-      setTax(0);
-    }
+    // NO FEES for direct user-to-user transfer
+    setFee(0);
+    setTax(0);
   };
 
-  // Initiate payment with Razorpay
+  // Send money directly to user (NO Razorpay - direct wallet transfer)
   const handleInitiatePayment = async (e) => {
     e.preventDefault();
     if (!selectedUser || !amount || parseFloat(amount) <= 0) {
@@ -83,85 +65,26 @@ export default function Payments() {
 
     setLoading(true);
     try {
-      // Call backend to create Razorpay order
-      const res = await API.post("/payments/initiate", {
+      const response = await API.post("/wallet/send-to-user", {
         receiverId: selectedUser._id,
         amount: parseFloat(amount),
-        note: note || "Payment Transfer"
+        note: note || ""
       });
 
-      const { razorpayOrder, razorpayKey } = res.data;
-
-      if (!window.Razorpay) {
-        toast.error("Razorpay library not loaded. Please refresh page.");
-        setLoading(false);
-        return;
-      }
-
-      // Open Razorpay checkout
-      const options = {
-        key: razorpayKey,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        order_id: razorpayOrder.orderId,
-        name: "Transaction Book",
-        description: `Payment to ${selectedUser.name}`,
-        notes: {
-          productDescription: `Payment to ${selectedUser.name}`
-        },
-        handler: (response) => handlePaymentSuccess(response),
-        prefill: {
-          name: authState?.user?.name || "",
-          email: authState?.user?.email || ""
-        },
-        theme: {
-          color: dark ? "#1f2937" : "#3b82f6"
-        },
-        modal: {
-          ondismiss: () => {
-            setLoading(false);
-            toast.error("Payment cancelled");
-          }
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      console.error("Payment initiation error:", err);
-      toast.error(err.response?.data?.message || "Failed to initiate payment");
-      setLoading(false);
-    }
-  };
-
-  // Handle successful payment
-  const handlePaymentSuccess = async (response) => {
-    setProcessingPayment(true);
-    try {
-      // Verify payment
-      const res = await API.post("/payments/verify", {
-        paymentId: response.razorpay_payment_id,
-        orderId: response.razorpay_order_id,
-        signature: response.razorpay_signature
-      });
-
-      toast.success("Payment completed successfully!");
+      toast.success(`₹${amount} sent successfully to ${selectedUser.name}!`);
       
       // Reset form
       setShowPaymentModal(false);
       setSelectedUser(null);
       setAmount("");
       setNote("");
-      setFee(0);
-      setTax(0);
       
       // Refresh data
       await fetchData();
     } catch (err) {
-      console.error("Payment verification error:", err);
-      toast.error(err.response?.data?.message || "Payment verification failed");
+      console.error("Send money error:", err);
+      toast.error(err.response?.data?.message || "Failed to send money");
     } finally {
-      setProcessingPayment(false);
       setLoading(false);
     }
   };
@@ -388,20 +311,20 @@ export default function Payments() {
                 />
               </div>
 
-              {/* Fee Breakdown */}
+              {/* Fee Breakdown - NO FEES for direct transfer */}
               {amount && (
                 <div className={`${dark ? "bg-gray-700" : "bg-gray-100"} p-4 rounded-lg`}>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Amount:</span>
                     <span>₹{parseFloat(amount).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>Fee (2%):</span>
-                    <span>₹{fee.toFixed(2)}</span>
+                  <div className="flex justify-between text-sm text-green-600 font-semibold">
+                    <span>Fee:</span>
+                    <span>₹0.00 (No fees for direct transfer)</span>
                   </div>
-                  <div className="flex justify-between text-sm border-t border-gray-500 pt-2">
+                  <div className="flex justify-between text-sm border-t border-gray-500 pt-2 mt-2">
                     <span className="font-semibold">Total:</span>
-                    <span className="font-semibold">₹{(parseFloat(amount) + fee).toFixed(2)}</span>
+                    <span className="font-semibold">₹{parseFloat(amount).toFixed(2)}</span>
                   </div>
                 </div>
               )}
@@ -447,7 +370,7 @@ export default function Payments() {
                   disabled={loading || !selectedUser || !amount}
                   className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {loading ? "Processing..." : "Pay Now"}
+                  {loading ? "Sending..." : "Send Money"}
                 </button>
               </div>
             </form>
