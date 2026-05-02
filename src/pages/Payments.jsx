@@ -23,9 +23,21 @@ export default function Payments() {
   const [tax, setTax] = useState(0);
   const [processingPayment, setProcessingPayment] = useState(null);
 
-  // Load Razorpay script on mount for Add Money feature only
+  // Load Razorpay script on mount for Add Money feature
   useEffect(() => {
     fetchData();
+    
+    // Load Razorpay script for Add Money functionality
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
   }, []);
 
   // Fetch all data on component load
@@ -89,7 +101,7 @@ export default function Payments() {
     }
   };
 
-  // Handle add money (for testing/demo)
+  // Handle add money with Razorpay checkout
   const handleAddMoney = async (e) => {
     e.preventDefault();
     if (!addAmount || parseFloat(addAmount) <= 0) {
@@ -99,17 +111,81 @@ export default function Payments() {
 
     setLoading(true);
     try {
-      const res = await API.post("/payments/add-money", {
-        amount: parseFloat(addAmount)
+      // Call backend to create Razorpay order for adding money
+      const res = await API.post("/wallet/add-money", {
+        amount: parseFloat(addAmount),
+        paymentMethod: "razorpay"
       });
+
+      const { order, transactionId, success } = res.data;
+
+      // Check if it's mock mode (testing) - directly credits wallet
+      if (success && res.data.message?.includes("successfully")) {
+        toast.success(`₹${addAmount} added to wallet successfully!`);
+        setShowAddMoneyModal(false);
+        setAddAmount("");
+        await fetchData();
+        setLoading(false);
+        return;
+      }
+
+      // Live mode - show Razorpay checkout
+      if (!window.Razorpay) {
+        toast.error("Razorpay library not loaded. Please refresh page.");
+        setLoading(false);
+        return;
+      }
+
+      const options = {
+        key: order.key,
+        amount: order.amount * 100, // Convert to paise
+        currency: order.currency || "INR",
+        order_id: order.orderId,
+        name: "Transaction Book",
+        description: `Add ₹${addAmount} to Wallet`,
+        handler: (response) => handleAddMoneySuccess(response, transactionId),
+        prefill: {
+          name: authState?.user?.name || "",
+          email: authState?.user?.email || ""
+        },
+        theme: {
+          color: dark ? "#1f2937" : "#3b82f6"
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            toast.error("Payment cancelled");
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error("Add money error:", err);
+      toast.error(err.response?.data?.message || "Failed to initiate payment");
+      setLoading(false);
+    }
+  };
+
+  // Handle successful add money payment
+  const handleAddMoneySuccess = async (response, transactionId) => {
+    try {
+      // Verify the payment
+      const verifyRes = await API.post("/wallet/add-money/verify", {
+        paymentId: response.razorpay_payment_id,
+        orderId: response.razorpay_order_id,
+        signature: response.razorpay_signature,
+        transactionId: transactionId
+      });
+
       toast.success(`₹${addAmount} added to wallet successfully!`);
-      setWalletBalance(res.data.newBalance);
       setShowAddMoneyModal(false);
       setAddAmount("");
       await fetchData();
     } catch (err) {
-      console.error("Add money error:", err);
-      toast.error(err.response?.data?.message || "Failed to add money");
+      console.error("Payment verification error:", err);
+      toast.error(err.response?.data?.message || "Payment verification failed");
     } finally {
       setLoading(false);
     }
