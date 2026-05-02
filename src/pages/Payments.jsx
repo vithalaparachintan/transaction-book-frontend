@@ -117,10 +117,10 @@ export default function Payments() {
         paymentMethod: "razorpay"
       });
 
-      const { order, transactionId, success } = res.data;
+      const { success, order, transaction, transactionId } = res.data;
 
       // Check if it's mock mode (testing) - directly credits wallet
-      if (success && res.data.message?.includes("successfully")) {
+      if (transaction?.gatewayMode === "mock") {
         toast.success(`₹${addAmount} added to wallet successfully!`);
         setShowAddMoneyModal(false);
         setAddAmount("");
@@ -130,6 +130,13 @@ export default function Payments() {
       }
 
       // Live mode - show Razorpay checkout
+      if (!order || !order.orderId || !order.key) {
+        toast.error("Failed to create payment order. Missing order details.");
+        console.error("Order details:", order);
+        setLoading(false);
+        return;
+      }
+
       if (!window.Razorpay) {
         toast.error("Razorpay library not loaded. Please refresh page.");
         setLoading(false);
@@ -138,7 +145,7 @@ export default function Payments() {
 
       const options = {
         key: order.key,
-        amount: order.amount * 100, // Convert to paise
+        amount: Math.round(order.amount * 100), // Convert to paise and ensure integer
         currency: order.currency || "INR",
         order_id: order.orderId,
         name: "Transaction Book",
@@ -164,6 +171,7 @@ export default function Payments() {
     } catch (err) {
       console.error("Add money error:", err);
       toast.error(err.response?.data?.message || "Failed to initiate payment");
+      console.error("Full error:", err.response?.data);
       setLoading(false);
     }
   };
