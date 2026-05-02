@@ -1,12 +1,10 @@
 import axios from "axios";
 
-// Use environment variable for API URL, fallback to localhost for development
-// Vite uses VITE_ prefix for env variables, not REACT_APP_
+// Use a same-origin API path in production so Vercel can proxy requests to Render
+// and avoid browser CORS failures.
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD
-    ? "https://transaction-book-backend.onrender.com/api"
-    : "http://localhost:5000/api");
+  (import.meta.env.PROD ? "/api" : "http://localhost:5000/api");
 
 const API = axios.create({ baseURL: API_BASE_URL });
 const AUTH_STORAGE_KEY = "transactionbook_user";
