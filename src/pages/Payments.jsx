@@ -42,21 +42,17 @@ export default function Payments() {
   // Fetch all data on component load
   const fetchData = async () => {
     try {
-      const [usersRes, paymentsRes, balanceRes, statsRes] = await Promise.all([
-        API.get("/payments/users/all").catch(err => ({ data: { users: [] }, error: err })),
+      const [customersRes, paymentsRes, balanceRes, statsRes] = await Promise.all([
+        API.get("/customers").catch(err => ({ data: [] , error: err })),
         API.get("/wallet/transactions").catch(err => ({ data: { transactions: [] }, error: err })),
         API.get("/payments/balance").catch(err => ({ data: { balance: 0 }, error: err })),
         API.get("/payments/stats/summary").catch(err => ({ data: { statistics: { sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } } }, error: err }))
       ]);
 
-      // Deduplicate users by ID
-      const uniqueUsers = Array.from(
-        new Map(
-          (usersRes.data?.users || []).map(user => [user._id, user])
-        ).values()
-      );
+      // Customers are account-specific, so we don't need additional filtering
+      const customers = Array.isArray(customersRes.data) ? customersRes.data : [];
       
-      setUsers(uniqueUsers);
+      setUsers(customers);
       setPayments(paymentsRes.data?.transactions || []);
       setWalletBalance(balanceRes.data?.balance || 0);
       setStats(statsRes.data?.statistics || { sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } });
@@ -73,18 +69,18 @@ export default function Payments() {
     setTax(0);
   };
 
-  // Send money directly to user (NO Razorpay - direct wallet transfer)
+  // Send money directly to contact (NO Razorpay - direct wallet transfer)
   const handleInitiatePayment = async (e) => {
     e.preventDefault();
     if (!selectedUser || !amount || parseFloat(amount) <= 0) {
-      toast.error("Please select user and enter valid amount");
+      toast.error("Please select contact and enter valid amount");
       return;
     }
 
     setLoading(true);
     try {
-      const response = await API.post("/wallet/send-to-user", {
-        receiverId: selectedUser._id,
+      const response = await API.post("/wallet/send-to-contact", {
+        contactId: selectedUser._id,
         amount: parseFloat(amount),
         note: note || ""
       });
@@ -96,6 +92,9 @@ export default function Payments() {
       setSelectedUser(null);
       setAmount("");
       setNote("");
+      
+      // Refresh data
+      await fetchData();
     } catch (err) {
       console.error("Send money error:", err);
       toast.error(err.response?.data?.message || "Failed to send money");
@@ -372,16 +371,16 @@ export default function Payments() {
             </h3>
 
             <form onSubmit={handleInitiatePayment} className="space-y-4">
-              {/* User Selection */}
+              {/* Contact Selection */}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                  Select Recipient
+                  Select Contact
                 </label>
                 <select
                   value={selectedUser?._id || ""}
                   onChange={(e) => {
-                    const user = users.find(u => u._id === e.target.value);
-                    setSelectedUser(user);
+                    const contact = users.find(u => u._id === e.target.value);
+                    setSelectedUser(contact);
                   }}
                   className={`w-full px-4 py-2 rounded-lg border ${
                     isDarkMode
@@ -389,10 +388,10 @@ export default function Payments() {
                       : "bg-white border-gray-300 text-gray-900"
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 >
-                  <option value="">Choose a user...</option>
-                  {users.map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {user.name} - ₹{user.walletBalance?.toFixed(2) || "0.00"}
+                  <option value="">Choose a contact...</option>
+                  {users.map((contact) => (
+                    <option key={contact._id} value={contact._id}>
+                      {contact.name} - {contact.phone || "No phone"}
                     </option>
                   ))}
                 </select>
