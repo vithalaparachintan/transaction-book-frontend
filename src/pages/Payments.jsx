@@ -121,11 +121,26 @@ export default function Payments() {
       const { order, transaction, transactionId } = res.data;
 
       if (transaction?.gatewayMode === "mock") {
-        toast.success(`₹${addAmount} added to wallet successfully!`);
-        setShowAddMoneyModal(false);
-        setAddAmount("");
-        await fetchData();
-        return;
+        // For mock mode, verify with mock signature
+        try {
+          await API.post("/wallet/add-money/verify", {
+            paymentId: `mock_payment_${Date.now()}`,
+            orderId: order.orderId || `mock_order_${Date.now()}`,
+            signature: "mock_signature",
+            transactionId: transactionId
+          });
+
+          toast.success(`₹${addAmount} added to wallet successfully!`);
+          setShowAddMoneyModal(false);
+          setAddAmount("");
+          await fetchData();
+          return;
+        } catch (verifyErr) {
+          console.error("Mock payment verification error:", verifyErr);
+          toast.error("Failed to process mock payment");
+          setLoading(false);
+          return;
+        }
       }
 
       if (!order || !order.orderId || !order.key) {
