@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { useDarkMode } from "../context/DarkModeContext";
 
 export default function SendMoneyModal({ isOpen, onClose, contact, onSuccess }) {
-  const { dark: isDarkMode } = useDarkMode();
+  const { isDarkMode } = useDarkMode();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,39 +15,33 @@ export default function SendMoneyModal({ isOpen, onClose, contact, onSuccess }) 
     if (!amount || parseFloat(amount) <= 0) {
       toast.error("Enter valid amount");
       return;
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+    }
 
     if (!contact?._id) {
-              isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-100"
-            } rounded-lg shadow-xl w-full max-w-md transition-colors duration-300`}
+      toast.error("Invalid contact selected");
+      return;
     }
 
     setLoading(true);
     try {
-      const response = await API.post("/wallet/send-to-contact", {
+      await API.post("/wallet/send-to-contact", {
         contactId: contact._id,
         amount: parseFloat(amount),
         note: note || ""
       });
 
-      toast.success(
-        `₹${amount} sent successfully to ${contact.name}!`
-      );
+      toast.success(`₹${amount} sent successfully to ${contact.name}!`);
 
-      // Reset form
       setAmount("");
       setNote("");
       onClose();
 
-      // Callback for parent to refresh data
       if (onSuccess) {
         onSuccess();
       }
     } catch (err) {
       console.error("Send money error:", err);
-      toast.error(
-        err.response?.data?.message || "Failed to send money"
-      );
+      toast.error(err.response?.data?.message || "Failed to send money");
     } finally {
       setLoading(false);
     }
@@ -59,11 +53,10 @@ export default function SendMoneyModal({ isOpen, onClose, contact, onSuccess }) 
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
       <div
         className={`${
-          isDarkMode ? "bg-gray-800" : "bg-white"
-        } rounded-lg shadow-xl w-full max-w-md`}
+          isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-100"
+        } rounded-lg shadow-xl w-full max-w-md transition-colors duration-300`}
       >
         <div className="p-6">
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className={`text-2xl font-bold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
@@ -81,15 +74,11 @@ export default function SendMoneyModal({ isOpen, onClose, contact, onSuccess }) 
             </button>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSendMoney} className="space-y-4">
-            {/* Amount */}
             <div>
               <label
                 htmlFor="amount"
-                className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? "text-gray-300" : "text-gray-700"
-                }`}
+                className={`block text-sm font-medium mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}
               >
                 Amount (₹)
               </label>
@@ -111,13 +100,10 @@ export default function SendMoneyModal({ isOpen, onClose, contact, onSuccess }) 
               />
             </div>
 
-            {/* Note */}
             <div>
               <label
                 htmlFor="note"
-                className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? "text-gray-300" : "text-gray-700"
-                }`}
+                className={`block text-sm font-medium mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}
               >
                 Note (Optional)
               </label>
@@ -135,7 +121,6 @@ export default function SendMoneyModal({ isOpen, onClose, contact, onSuccess }) 
               />
             </div>
 
-            {/* Info Alert */}
             <div
               className={`p-4 rounded-lg text-sm ${
                 isDarkMode
@@ -149,7 +134,6 @@ export default function SendMoneyModal({ isOpen, onClose, contact, onSuccess }) 
               </p>
             </div>
 
-            {/* Buttons */}
             <div className="flex gap-3 pt-4">
               <button
                 type="button"
