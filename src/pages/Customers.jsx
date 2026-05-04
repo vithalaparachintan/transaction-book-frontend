@@ -186,7 +186,14 @@ export default function Customers() {
     try {
       const [summaryRes, cRes] = await Promise.all([ API.get("/transactions/summary"), API.get("/customers") ]);
       setSummary(summaryRes.data);
-      setCustomers(cRes.data);
+      
+      // Deduplicate customers by ID (keep first occurrence)
+      const uniqueCustomers = Array.from(
+        new Map((Array.isArray(cRes.data) ? cRes.data : cRes.data?.customers || [])
+          .map(customer => [customer._id, customer])).values()
+      );
+      
+      setCustomers(uniqueCustomers);
     } catch (error) { console.error("Failed to load data:", error); }
   }
 

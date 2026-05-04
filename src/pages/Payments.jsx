@@ -49,7 +49,14 @@ export default function Payments() {
         API.get("/payments/stats/summary").catch(err => ({ data: { statistics: { sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } } }, error: err }))
       ]);
 
-      setUsers(usersRes.data?.users || []);
+      // Deduplicate users by ID
+      const uniqueUsers = Array.from(
+        new Map(
+          (usersRes.data?.users || []).map(user => [user._id, user])
+        ).values()
+      );
+      
+      setUsers(uniqueUsers);
       setPayments(paymentsRes.data?.transactions || []);
       setWalletBalance(balanceRes.data?.balance || 0);
       setStats(statsRes.data?.statistics || { sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } });
