@@ -5,7 +5,7 @@ import { useDarkMode } from "../context/DarkModeContext";
 import { useAuth } from "../context/AuthContext";
 
 export default function Payments() {
-  const { dark } = useDarkMode();
+  const { dark: isDarkMode } = useDarkMode();
   const { authState } = useAuth();
   const currentUserId = authState?.user?._id;
   const [users, setUsers] = useState([]);
@@ -156,7 +156,7 @@ export default function Payments() {
           email: authState?.user?.email || ""
         },
         theme: {
-          color: dark ? "#1f2937" : "#3b82f6"
+          color: isDarkMode ? "#1f2937" : "#3b82f6"
         },
         modal: {
           ondismiss: () => {
@@ -225,42 +225,42 @@ export default function Payments() {
   };
 
   return (
-    <div className={`min-h-screen ${dark ? "bg-gray-900" : "bg-gray-50"} p-6`}>
+    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? "bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 text-gray-100" : "bg-gradient-to-br from-gray-50 via-cyan-50/30 to-blue-50/30 text-gray-900"} p-6`}>
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl shadow-lg p-8 mb-6`}>
+        <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-100"} rounded-xl shadow-lg p-8 mb-6 transition-colors duration-300`}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Title */}
             <div className="md:col-span-1">
-              <h1 className={`text-4xl font-bold ${dark ? "text-white" : "text-gray-900"}`}>
+              <h1 className={`text-4xl font-bold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                 Payments
               </h1>
-              <p className={`mt-2 text-sm ${dark ? "text-gray-400" : "text-gray-600"}`}>
+              <p className={`mt-2 text-sm ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
                 Professional Payment Gateway
               </p>
             </div>
 
             {/* Wallet Balance Card */}
-            <div className={`${dark ? "bg-gradient-to-br from-blue-900 to-blue-800" : "bg-gradient-to-br from-blue-500 to-blue-600"} rounded-lg p-6 text-white shadow-lg`}>
+            <div className={`${isDarkMode ? "bg-gradient-to-br from-blue-900 to-blue-800" : "bg-gradient-to-br from-blue-500 to-blue-600"} rounded-lg p-6 text-white shadow-lg transition-colors duration-300`}>
               <p className="text-sm font-medium opacity-90">Wallet Balance</p>
               <p className="text-3xl font-bold mt-2">₹{walletBalance.toFixed(2)}</p>
             </div>
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-4">
-              <div className={`${dark ? "bg-gray-700" : "bg-gray-100"} rounded-lg p-4`}>
-                <p className={`text-xs font-medium ${dark ? "text-gray-400" : "text-gray-600"}`}>
+              <div className={`${isDarkMode ? "bg-gray-700" : "bg-gray-100"} rounded-lg p-4 transition-colors duration-300`}>
+                <p className={`text-xs font-medium ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
                   Total Sent
                 </p>
-                <p className={`text-lg font-bold mt-1 ${dark ? "text-white" : "text-gray-900"}`}>
+                <p className={`text-lg font-bold mt-1 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                   ₹{(stats.sent?.totalAmount || 0).toFixed(0)}
                 </p>
               </div>
-              <div className={`${dark ? "bg-gray-700" : "bg-gray-100"} rounded-lg p-4`}>
-                <p className={`text-xs font-medium ${dark ? "text-gray-400" : "text-gray-600"}`}>
+              <div className={`${isDarkMode ? "bg-gray-700" : "bg-gray-100"} rounded-lg p-4 transition-colors duration-300`}>
+                <p className={`text-xs font-medium ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
                   Total Received
                 </p>
-                <p className={`text-lg font-bold mt-1 ${dark ? "text-white" : "text-gray-900"}`}>
+                <p className={`text-lg font-bold mt-1 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                   ₹{(stats.received?.totalAmount || 0).toFixed(0)}
                 </p>
               </div>
@@ -285,13 +285,13 @@ export default function Payments() {
         </div>
 
         {/* Transaction History */}
-        <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl shadow-lg p-6`}>
-          <h2 className={`text-2xl font-bold mb-6 ${dark ? "text-white" : "text-gray-900"}`}>
+        <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-100"} rounded-xl shadow-lg p-6 transition-colors duration-300`}>
+          <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
             Transaction History
           </h2>
 
           {payments.length === 0 ? (
-            <div className={`text-center py-12 ${dark ? "text-gray-400" : "text-gray-500"}`}>
+            <div className={`text-center py-12 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
               <p className="text-lg font-medium">No transactions yet</p>
               <p className="text-sm mt-1">Send your first payment using the button above</p>
             </div>
@@ -305,7 +305,7 @@ export default function Payments() {
                   <div
                     key={payment._id}
                     className={`${
-                      dark ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-50 hover:bg-gray-100"
+                      isDarkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-50 hover:bg-gray-100"
                     } p-5 rounded-lg flex justify-between items-center transition-colors`}
                   >
                     <div className="flex items-center gap-4 flex-1">
@@ -317,10 +317,10 @@ export default function Payments() {
                         {otherUser?.name?.charAt(0)?.toUpperCase() || "U"}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
+                        <p className={`font-semibold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
                           {isSent ? "Sent to" : "Received from"} {otherUser?.name}
                         </p>
-                        <p className={`text-xs ${dark ? "text-gray-400" : "text-gray-600"}`}>
+                        <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
                           {new Date(payment.createdAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -341,16 +341,16 @@ export default function Payments() {
 
       {/* Send Money Modal */}
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl shadow-2xl max-w-md w-full p-6`}>
-            <h3 className={`text-2xl font-bold mb-6 ${dark ? "text-white" : "text-gray-900"}`}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-100"} rounded-xl shadow-2xl max-w-md w-full p-6 transition-colors duration-300`}>
+            <h3 className={`text-2xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
               Send Money
             </h3>
 
             <form onSubmit={handleInitiatePayment} className="space-y-4">
               {/* User Selection */}
               <div>
-                <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
                   Select Recipient
                 </label>
                 <select
@@ -360,7 +360,7 @@ export default function Payments() {
                     setSelectedUser(user);
                   }}
                   className={`w-full px-4 py-2 rounded-lg border ${
-                    dark
+                    isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -376,7 +376,7 @@ export default function Payments() {
 
               {/* Amount Input */}
               <div>
-                <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
                   Amount (₹)
                 </label>
                 <input
@@ -388,7 +388,7 @@ export default function Payments() {
                   max="100000"
                   step="0.01"
                   className={`w-full px-4 py-2 rounded-lg border ${
-                    dark
+                    isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -397,7 +397,7 @@ export default function Payments() {
 
               {/* Fee Breakdown - NO FEES for direct transfer */}
               {amount && (
-                <div className={`${dark ? "bg-gray-700" : "bg-gray-100"} p-4 rounded-lg`}>
+                <div className={`${isDarkMode ? "bg-gray-700" : "bg-gray-100"} p-4 rounded-lg`}>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Amount:</span>
                     <span>₹{parseFloat(amount).toFixed(2)}</span>
@@ -415,7 +415,7 @@ export default function Payments() {
 
               {/* Note Input */}
               <div>
-                <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
                   Note (Optional)
                 </label>
                 <input
@@ -424,7 +424,7 @@ export default function Payments() {
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Add a note"
                   className={`w-full px-4 py-2 rounded-lg border ${
-                    dark
+                    isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -442,7 +442,7 @@ export default function Payments() {
                     setNote("");
                   }}
                   className={`flex-1 px-4 py-2 rounded-lg font-medium ${
-                    dark
+                    isDarkMode
                       ? "bg-gray-700 text-white hover:bg-gray-600"
                       : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                   }`}
@@ -464,15 +464,15 @@ export default function Payments() {
 
       {/* Add Money Modal */}
       {showAddMoneyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`${dark ? "bg-gray-800" : "bg-white"} rounded-xl shadow-2xl max-w-md w-full p-6`}>
-            <h3 className={`text-2xl font-bold mb-6 ${dark ? "text-white" : "text-gray-900"}`}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className={`${isDarkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-100"} rounded-xl shadow-2xl max-w-md w-full p-6 transition-colors duration-300`}>
+            <h3 className={`text-2xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"}`}>
               Add Money to Wallet
             </h3>
 
             <form onSubmit={handleAddMoney} className="space-y-4">
               <div>
-                <label className={`block text-sm font-medium mb-2 ${dark ? "text-gray-300" : "text-gray-700"}`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
                   Amount (₹)
                 </label>
                 <input
@@ -484,7 +484,7 @@ export default function Payments() {
                   max="100000"
                   step="0.01"
                   className={`w-full px-4 py-2 rounded-lg border ${
-                    dark
+                    isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
                   } focus:outline-none focus:ring-2 focus:ring-green-500`}
@@ -499,7 +499,7 @@ export default function Payments() {
                     setAddAmount("");
                   }}
                   className={`flex-1 px-4 py-2 rounded-lg font-medium ${
-                    dark
+                    isDarkMode
                       ? "bg-gray-700 text-white hover:bg-gray-600"
                       : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                   }`}
