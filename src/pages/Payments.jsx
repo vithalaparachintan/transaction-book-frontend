@@ -7,7 +7,6 @@ import { useAuth } from "../context/AuthContext";
 export default function Payments() {
   const { dark: isDarkMode } = useDarkMode();
   const { authState } = useAuth();
-  const currentUserId = authState?.user?._id;
   const [users, setUsers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -45,13 +44,13 @@ export default function Payments() {
     try {
       const [usersRes, paymentsRes, balanceRes, statsRes] = await Promise.all([
         API.get("/payments/users/all").catch(err => ({ data: { users: [] }, error: err })),
-        API.get("/payments/history").catch(err => ({ data: { payments: [] }, error: err })),
+        API.get("/wallet/transactions").catch(err => ({ data: { transactions: [] }, error: err })),
         API.get("/payments/balance").catch(err => ({ data: { balance: 0 }, error: err })),
         API.get("/payments/stats/summary").catch(err => ({ data: { statistics: { sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } } }, error: err }))
       ]);
 
       setUsers(usersRes.data?.users || []);
-      setPayments(paymentsRes.data?.payments || []);
+      setPayments(paymentsRes.data?.transactions || []);
       setWalletBalance(balanceRes.data?.balance || 0);
       setStats(statsRes.data?.statistics || { sent: { totalAmount: 0, count: 0 }, received: { totalAmount: 0, count: 0 } });
     } catch (err) {
@@ -90,13 +89,9 @@ export default function Payments() {
       setSelectedUser(null);
       setAmount("");
       setNote("");
-      
-      // Refresh data
-      await fetchData();
     } catch (err) {
       console.error("Send money error:", err);
       toast.error(err.response?.data?.message || "Failed to send money");
-    } finally {
       setLoading(false);
     }
   };
@@ -111,41 +106,35 @@ export default function Payments() {
 
     setLoading(true);
     try {
-      // Call backend to create Razorpay order for adding money
       const res = await API.post("/wallet/add-money", {
         amount: parseFloat(addAmount),
         paymentMethod: "razorpay"
       });
 
-      const { success, order, transaction, transactionId } = res.data;
+      const { order, transaction, transactionId } = res.data;
 
-      // Check if it's mock mode (testing) - directly credits wallet
       if (transaction?.gatewayMode === "mock") {
         toast.success(`₹${addAmount} added to wallet successfully!`);
         setShowAddMoneyModal(false);
         setAddAmount("");
         await fetchData();
-        setLoading(false);
         return;
       }
 
-      // Live mode - show Razorpay checkout
       if (!order || !order.orderId || !order.key) {
         toast.error("Failed to create payment order. Missing order details.");
         console.error("Order details:", order);
-        setLoading(false);
         return;
       }
 
       if (!window.Razorpay) {
         toast.error("Razorpay library not loaded. Please refresh page.");
-        setLoading(false);
         return;
       }
 
       const options = {
         key: order.key,
-        amount: Math.round(order.amount * 100), // Convert to paise and ensure integer
+        amount: Math.round(order.amount * 100),
         currency: order.currency || "INR",
         order_id: order.orderId,
         name: "Transaction Book",
@@ -172,6 +161,7 @@ export default function Payments() {
       console.error("Add money error:", err);
       toast.error(err.response?.data?.message || "Failed to initiate payment");
       console.error("Full error:", err.response?.data);
+    } finally {
       setLoading(false);
     }
   };
@@ -179,8 +169,7 @@ export default function Payments() {
   // Handle successful add money payment
   const handleAddMoneySuccess = async (response, transactionId) => {
     try {
-      // Verify the payment
-      const verifyRes = await API.post("/wallet/add-money/verify", {
+      await API.post("/wallet/add-money/verify", {
         paymentId: response.razorpay_payment_id,
         orderId: response.razorpay_order_id,
         signature: response.razorpay_signature,
@@ -297,13 +286,26 @@ export default function Payments() {
             </div>
           ) : (
             <div className="space-y-3 overflow-x-auto">
-              {payments.map((payment) => {
-                const isSent = payment.sender?._id === currentUserId;
-                const otherUser = isSent ? payment.receiver : payment.sender;
+              {payments.map((transaction) => {
+                const isSent = ["SEND_TO_CONTACT", "SEND_TO_USER"].includes(transaction.type);
+                const counterpartyName =
+                  transaction.contactName ||
+                  transaction.relatedUserName ||
+                  transaction.contact?.name ||
+                  transaction.relatedUser?.name ||
+                  transaction.receiver?.name ||
+                  transaction.sender?.name ||
+                  "Unknown";
+
+                const title = transaction.type === "ADD_MONEY"
+                  ? "Added to Wallet"
+                  : isSent
+                    ? `Sent to ${counterpartyName}`
+                    : `Received from ${counterpartyName}`;
 
                 return (
                   <div
-                    key={payment._id}
+                    key={transaction.id || transaction._id}
                     className={`${
                       isDarkMode ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-50 hover:bg-gray-100"
                     } p-5 rounded-lg flex justify-between items-center transition-colors`}
@@ -311,25 +313,25 @@ export default function Payments() {
                     <div className="flex items-center gap-4 flex-1">
                       <div
                         className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-sm ${
-                          isSent ? "bg-red-500" : "bg-green-500"
+                          isSent ? "bg-red-500" : transaction.type === "ADD_MONEY" ? "bg-blue-500" : "bg-green-500"
                         }`}
                       >
-                        {otherUser?.name?.charAt(0)?.toUpperCase() || "U"}
+                        {counterpartyName?.charAt(0)?.toUpperCase() || (transaction.type === "ADD_MONEY" ? "W" : "U")}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`font-semibold ${isDarkMode ? "text-white" : "text-gray-900"}`}>
-                          {isSent ? "Sent to" : "Received from"} {otherUser?.name}
+                          {title}
                         </p>
                         <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-                          {new Date(payment.createdAt).toLocaleDateString()}
+                          {new Date(transaction.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className={`text-lg font-bold ${isSent ? "text-red-500" : "text-green-500"}`}>
-                        {isSent ? "-" : "+"}₹{payment.amount.toFixed(2)}
+                        {isSent ? "-" : "+"}₹{Number(transaction.amount || 0).toFixed(2)}
                       </p>
-                      {getStatusBadge(payment.status)}
+                      {getStatusBadge(transaction.status)}
                     </div>
                   </div>
                 );
