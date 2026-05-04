@@ -5,7 +5,7 @@ import { useDarkMode } from "../context/DarkModeContext";
 import { useAuth } from "../context/AuthContext";
 
 export default function Payments() {
-  const { dark: isDarkMode } = useDarkMode();
+  const { isDarkMode } = useDarkMode();
   const { authState } = useAuth();
   const [users, setUsers] = useState([]);
   const [payments, setPayments] = useState([]);

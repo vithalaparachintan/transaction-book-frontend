@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 const DarkModeContext = createContext();
@@ -11,14 +10,21 @@ export function DarkModeProvider({ children }) {
     return saved ? JSON.parse(saved) : false;
   });
 
+  // Apply dark mode on mount
   useEffect(() => {
     localStorage.setItem("transactionbook_darkmode", JSON.stringify(isDarkMode));
+    const root = document.documentElement;
+    const body = document.body;
+    const appRoot = document.getElementById('root');
+    
     if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      document.body.classList.add('dark');
+      root.classList.add('dark');
+      body.classList.add('dark');
+      if (appRoot) appRoot.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
-      document.body.classList.remove('dark');
+      root.classList.remove('dark');
+      body.classList.remove('dark');
+      if (appRoot) appRoot.classList.remove('dark');
     }
   }, [isDarkMode]);
 
